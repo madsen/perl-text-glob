@@ -1,6 +1,6 @@
 #!perl -w
 use strict;
-use Test::More tests => 44;
+use Test::More tests => 61;
 
 BEGIN { use_ok('Text::Glob', qw( glob_to_regex match_glob ) ) }
 
@@ -30,24 +30,33 @@ ok(  match_glob( 'foo.(bar)', 'foo.(bar)'), "escape ()" );
 
 ok( !match_glob( '*.foo',  '.file.foo' ), "strict . rule fail" );
 ok(  match_glob( '.*.foo', '.file.foo' ), "strict . rule match" );
+ok( !match_glob( '**.foo', '.file.foo' ), "strict . rule fail **" );
 {
 local $Text::Glob::strict_leading_dot;
 ok(  match_glob( '*.foo', '.file.foo' ), "relaxed . rule" );
+ok(  match_glob( '**.foo', '.file.foo' ), "relaxed . rule **" );
 }
 
 ok( !match_glob( '*.fo?',   'foo/file.fob' ), "strict wildcard / fail" );
 ok(  match_glob( '*/*.fo?', 'foo/file.fob' ), "strict wildcard / match" );
+ok(  match_glob( '**.fo?',  'foo/file.fob' ), "strict wildcard / ** match" );
 {
 local $Text::Glob::strict_wildcard_slash;
 ok(  match_glob( '*.fo?', 'foo/file.fob' ), "relaxed wildcard /" );
+ok(  match_glob( '**.fo?',  'foo/file.fob' ), "relaxed wildcard / ** match" );
 }
 
 
 ok( !match_glob( 'foo/*.foo', 'foo/.foo' ), "more strict wildcard / fail" );
 ok(  match_glob( 'foo/.f*',   'foo/.foo' ), "more strict wildcard / match" );
+ok( !match_glob( 'foo/**.foo','foo/.foo' ), "more strict wildcard / ** fail" );
 {
 local $Text::Glob::strict_wildcard_slash;
 ok(  match_glob( '*.foo', 'foo/.foo' ), "relaxed wildcard /" );
+ok( !match_glob( '**.foo', 'foo/.foo' ), "relaxed wildcard / ** fail" );
+ok(  match_glob( '**/.foo', 'foo/.foo' ), "relaxed wildcard / ** match" );
+local $Text::Glob::strict_leading_dot;
+ok(  match_glob( '**.foo', 'foo/.foo' ), "relaxed wildcard & dot / ** match" );
 }
 
 ok(  match_glob( 'f+.foo', 'f+.foo' ), "properly escape +" );
@@ -76,3 +85,16 @@ ok( !match_glob( '{foo,{bar,baz}}', 'foz') );
 ok(  match_glob( 'foo@bar', 'foo@bar'), '@ character');
 ok(  match_glob( 'foo$bar', 'foo$bar'), '$ character');
 ok(  match_glob( 'foo%bar', 'foo%bar'), '% character');
+
+ok( !match_glob( '**foo', '.hidden/foo'),     '** fail .hidden');
+ok( !match_glob( '**foo', 'dir/.hidden/foo'), '** fail dir/.hidden');
+ok( !match_glob( '**foo', 'dir/.foo'),        '** fail .foo');
+ok( !match_glob( '**.foo', 'dir/.foo'),       '**. fail .foo');
+ok(  match_glob( '**/.foo', 'dir/.foo'),      '**/. match');
+{
+local $Text::Glob::strict_leading_dot;
+ok(  match_glob( '**foo', '.hidden/foo'),     '** match .hidden');
+ok(  match_glob( '**foo', 'dir/.hidden/foo'), '** match dir/.hidden');
+ok(  match_glob( '**foo', 'dir/.foo'),        '** match .foo');
+ok(  match_glob( '**.foo', 'dir/.foo'),       '**. match .foo');
+}

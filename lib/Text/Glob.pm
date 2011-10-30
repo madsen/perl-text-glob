@@ -24,7 +24,8 @@ sub glob_to_regex_string
     my ($regex, $in_curlies, $escaping);
     local $_;
     my $first_byte = 1;
-    for ($glob =~ m/(.)/gs) {
+    while ($glob =~ m/\G(.)/gs) {
+        $_ = $1;
         if ($first_byte) {
             if ($strict_leading_dot) {
                 $regex .= '(?=[^\.])' unless $_ eq '.';
@@ -40,7 +41,9 @@ sub glob_to_regex_string
         }
         elsif ($_ eq '*') {
             $regex .= $escaping ? "\\*" :
-              $strict_wildcard_slash ? "[^/]*" : ".*";
+              ($glob =~ m/\G\*/gc)
+                ? ( $strict_leading_dot ? "(?:[^/]|/(?!\\.))*" : ".*" )
+                : $strict_wildcard_slash ? "[^/]*" : ".*";
         }
         elsif ($_ eq '?') {
             $regex .= $escaping ? "\\?" :
@@ -141,6 +144,10 @@ The following metacharacters and rules are respected.
 
 C<a*> matches C<a>, C<aa>, C<aaaa> and many many more.
 
+=item C<**> - match zero or more characters, including C</>
+
+C<**> is just like C<*>, but it can match C</>.
+
 =item C<?> - match exactly one character
 
 C<a?> matches C<aa>, but not C<a>, or C<aaa>
@@ -163,10 +170,15 @@ the leading . in the glob pattern (C<.*.foo>), or set
 C<$Text::Glob::strict_leading_dot> to a false value while compiling
 the regex.
 
+Likewise, C<**foo> does not match C<.hidden/foo>, C<dir/.hidden/foo>,
+or C<dir/.foo> unless C<$Text::Glob::strict_leading_dot> is false.
+Also, C<**.foo> does not match C<dir/.foo>, but C<**/.foo> does.
+
 =item C<*> and C<?> do not match /
 
 C<*.foo> does not match C<bar/baz.foo>.  For this you must either
-explicitly match the / in the glob (C<*/*.foo>), or set
+explicitly match the / in the glob (C<*/*.foo>), use C<**.foo>,
+or set
 C<$Text::Glob::strict_wildcard_slash> to a false value with compiling
 the regex.
 
